@@ -2,17 +2,18 @@ package ru.tandser.magnet;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 
-import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.stream.StreamSource;
 import java.io.File;
 import java.io.Serializable;
-import java.io.StringWriter;
+import java.math.BigInteger;
+import java.nio.file.Paths;
 import java.sql.*;
 
 public class Core implements Serializable {
@@ -25,6 +26,8 @@ public class Core implements Serializable {
     private String url;
     private String username;
     private String password;
+
+    private transient Connection connection;
 
     public String getDriverClassName() {
         return driverClassName;
@@ -58,14 +61,13 @@ public class Core implements Serializable {
         this.password = password;
     }
 
-    public void insert(int n) throws ClassNotFoundException {
+    public void insert(int n) {
         if (n < 0) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("Argument must be greater than zero");
         }
 
-        Class.forName(getDriverClassName());
-
-        try (Connection connection = DriverManager.getConnection(getUrl(), getUsername(), getPassword())) {
+        try {
+            connection = DriverManager.getConnection(getUrl(), getUsername(), getPassword());
 
             connection.setAutoCommit(false);
 
@@ -102,14 +104,19 @@ public class Core implements Serializable {
                 }
             }
         } catch (Exception exc) {
-
+            throw new RuntimeException(exc);
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.setAutoCommit(true);
+                } catch (SQLException ignored) {}
+            }
         }
     }
 
-    public void retrieve() throws ClassNotFoundException {
-        Class.forName(getDriverClassName());
-
-        try (Connection connection = DriverManager.getConnection(getUrl(), getUsername(), getPassword())) {
+    public void retrieve(String output) throws ClassNotFoundException {
+        try {
+            connection.setReadOnly(true);
 
             Statement statement = null;
 
@@ -122,21 +129,16 @@ public class Core implements Serializable {
                 while (resultSet.next()) {
                     Element entry = document.createElement("entry");
                     Element field = document.createElement("field");
-                    field.appendChild(document.createTextNode(Integer.toString(resultSet.getInt("field"))));
+                    field.appendChild(document.createTextNode(Integer.toString(resultSet.getInt(1))));
                     entry.appendChild(field);
                     entries.appendChild(entry);
                 }
                 document.appendChild(entries);
 
                 Transformer transformer = TransformerFactory.newInstance().newTransformer();
-                transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-                transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
-
-                DOMSource domSource = new DOMSource(document);
-                StreamResult streamResult = new StreamResult(new File("1.xml"));
-                transformer.transform(domSource, streamResult);
+                transformer.transform(new DOMSource(document), new StreamResult(Paths.get(output).toFile()));
             } catch (SQLException exc) {
-
+                exc.printStackTrace();
             } finally {
                 if (statement != null) {
                     try {
@@ -146,8 +148,37 @@ public class Core implements Serializable {
             }
 
         } catch (Exception exc) {
-
+            throw new RuntimeException(exc);
+        } finally {
+            try {
+                connection.close();
+            } catch (SQLException ignored) {}
         }
+    }
+
+    public void convert(String stylesheet, String input, String output) throws Exception {
+        File xslt = Paths.get(stylesheet).toFile();
+        Transformer transformer = TransformerFactory.newInstance().newTransformer(new StreamSource(xslt));
+        transformer.transform(new StreamSource(input), new StreamResult(Paths.get(output).toFile()));
+    }
+
+    public BigInteger sum(String input) {
+        File xml = Paths.get(input).toFile();
+
+        BigInteger result = BigInteger.ZERO;
+
+        try {
+            Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(xml);
+            NodeList nodeList = document.getElementsByTagName("entry");
+            for (int i = 0; i < nodeList.getLength(); i++) {
+                Element entry = (Element) nodeList.item(i);
+                result = result.add(new BigInteger(entry.getAttribute("field")));
+            }
+        } catch (Exception exc) {
+            exc.printStackTrace();
+        }
+
+        return result;
     }
 
     public static void main(String[] args) throws Exception {
@@ -156,7 +187,18 @@ public class Core implements Serializable {
         core.setUrl("jdbc:postgresql://localhost:5432/postgres");
         core.setUsername("postgres");
         core.setPassword("postgres");
-        core.insert(100);
-        core.retrieve();
+
+//        long start = System.currentTimeMillis();
+
+        core.insert(1_000_000);
+//        System.out.println("insert");
+//        core.retrieve("1.xml");
+//        System.out.println("retrieve");
+//        core.convert("src/main/resources/entries.xsl", "1.xml", "2.xml");
+//        BigInteger sum = core.sum("2.xml");
+
+//        System.out.println((System.currentTimeMillis() - start) + " ms");
+
+//        System.out.println(sum.toString());
     }
 }
