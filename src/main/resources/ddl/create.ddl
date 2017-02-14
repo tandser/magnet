@@ -1,0 +1,5 @@
+DROP TABLE    IF EXISTS test;
+
+CREATE TABLE test(
+  field INTEGER NOT NULL
+);
