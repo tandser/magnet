@@ -26,40 +26,33 @@ public class Application {
 
         public static String read() {
             String input = null;
-
             try {
                 input = reader.readLine();
             } catch (Exception exc) {
                 print("exception: Fatal error. The application will be closed");
                 System.exit(1);
             }
-
             return input;
         }
 
         public static Integer read(String message, String error) {
             String input;
             Integer result = null;
-
             print(message);
-
             while (!"exit".equalsIgnoreCase(input = read())) {
                 try {
                     result = Integer.valueOf(input);
-
                     if (result <= 0) {
                         println(error);
                         print(message);
                         continue;
                     }
-
                     break;
                 } catch (Exception exc) {
                     println(error);
                     print(message);
                 }
             }
-
             return result;
         }
 
