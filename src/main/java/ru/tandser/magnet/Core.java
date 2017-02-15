@@ -12,9 +12,9 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import java.io.File;
+import java.io.InputStream;
 import java.io.Serializable;
 import java.math.BigInteger;
-import java.net.URI;
 import java.nio.file.Paths;
 import java.sql.*;
 
@@ -78,10 +78,8 @@ public class Core implements Serializable {
         try {
             connection = DriverManager.getConnection(getUrl(), getUsername(), getPassword());
             connection.setAutoCommit(false);
-
             Statement statement = null;
             PreparedStatement preparedStatement = null;
-
             try {
                 statement = connection.createStatement();
                 statement.execute(DELETE);
@@ -96,13 +94,11 @@ public class Core implements Serializable {
                 connection.commit();
             } catch (Exception exc1) {
                 printExceptionMessage(exc1);
-
                 try {
                     connection.rollback();
                 } catch (Exception exc2) {
                     printExceptionMessage(exc2);
                 }
-
                 throw new CoreException();
             } finally {
                 close(preparedStatement);
@@ -158,10 +154,9 @@ public class Core implements Serializable {
         }
     }
 
-    public void convert(URI stylesheet, String input, String output) throws CoreException {
+    public void convert(InputStream stylesheet, String input, String output) throws CoreException {
         try {
-            File xslt = Paths.get(stylesheet).toFile();
-            Transformer transformer = TransformerFactory.newInstance().newTransformer(new StreamSource(xslt));
+            Transformer transformer = TransformerFactory.newInstance().newTransformer(new StreamSource(stylesheet));
             transformer.transform(new StreamSource(input), new StreamResult(Paths.get(output).toFile()));
         } catch (Exception exc) {
             printExceptionMessage(exc);
@@ -177,6 +172,7 @@ public class Core implements Serializable {
 
             Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(source);
             NodeList nodeList = document.getElementsByTagName("entry");
+
             for (int i = 0; i < nodeList.getLength(); i++) {
                 Element entry = (Element) nodeList.item(i);
                 sum = sum.add(new BigInteger(entry.getAttribute("field")));

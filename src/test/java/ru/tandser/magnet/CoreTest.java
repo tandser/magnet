@@ -12,6 +12,7 @@ import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
 import java.io.File;
+import java.io.InputStream;
 import java.math.BigInteger;
 import java.net.URI;
 import java.nio.file.Paths;
@@ -47,19 +48,17 @@ public class CoreTest {
 
         connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
 
-        Statement statement = connection.createStatement();
-        statement.execute("CREATE TABLE test (field INTEGER NOT NULL);");
-
-        statement.close();
-
-        PreparedStatement preparedStatement = connection.prepareStatement(Core.INSERT);
-        for (int i = -10; i <= 0; i++) {
-            preparedStatement.setInt(1, i);
-            preparedStatement.addBatch();
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("CREATE TABLE test (field INTEGER NOT NULL);");
         }
-        preparedStatement.executeBatch();
 
-        preparedStatement.close();
+        try (PreparedStatement preparedStatement = connection.prepareStatement(Core.INSERT)) {
+            for (int i = -10; i <= 0; i++) {
+                preparedStatement.setInt(1, i);
+                preparedStatement.addBatch();
+            }
+            preparedStatement.executeBatch();
+        }
 
         sum = Stream.iterate(BigInteger.ONE, n -> n.add(BigInteger.ONE)).limit(N).reduce(BigInteger::add).get();
 
@@ -73,17 +72,13 @@ public class CoreTest {
     public void testInsert() throws Exception {
         core.insert(N);
         core.dispose();
-
         Statement statement = connection.createStatement();
         ResultSet resultSet = statement.executeQuery(Core.SELECT);
-
         BigInteger actual = BigInteger.ZERO;
         while (resultSet.next()) {
             actual = actual.add(BigInteger.valueOf(resultSet.getInt(1)));
         }
-
         statement.close();
-
         assertTrue(actual.equals(sum));
     }
 
@@ -92,44 +87,35 @@ public class CoreTest {
         core.insert(N);
         core.retrieve(FILE_1);
         core.dispose();
-
         Document actual = parse(Paths.get(FILE_1).toFile());
-
         validator("/schema1.xsd").validate(new DOMSource(actual));
-
         Document extended = parse(getResource("/mock1.xml"));
-
         assertTrue(actual.isEqualNode(extended));
     }
 
     @Test
     public void testConvert() throws Exception {
-        URI xslURI = getClass().getResource("/entries.xsl").toURI();
-
         core.insert(N);
         core.retrieve(FILE_1);
-        core.convert(xslURI, FILE_1, FILE_2);
+        try (InputStream stylesheet = getClass().getResourceAsStream("/entries.xsl")) {
+            core.convert(stylesheet, FILE_1, FILE_2);
+        }
         core.dispose();
-
         Document actual = parse(Paths.get(FILE_2).toFile());
-
         validator("/schema2.xsd").validate(new DOMSource(actual));
-
         Document extended = parse(getResource("/mock2.xml"));
-
         assertTrue(actual.isEqualNode(extended));
     }
 
     @Test
     public void testSum() throws Exception {
-        URI xslURI = getClass().getResource("/entries.xsl").toURI();
-
         core.insert(N);
         core.retrieve(FILE_1);
-        core.convert(xslURI, FILE_1, FILE_2);
+        try (InputStream stylesheet = getClass().getResourceAsStream("/entries.xsl")) {
+            core.convert(stylesheet, FILE_1, FILE_2);
+        }
         BigInteger actual = core.sum(FILE_2);
         core.dispose();
-
         assertTrue(actual.equals(sum));
     }
 

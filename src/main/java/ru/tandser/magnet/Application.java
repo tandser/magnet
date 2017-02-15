@@ -1,9 +1,10 @@
 package ru.tandser.magnet;
 
 import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigInteger;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.TimeUnit;
 
@@ -69,7 +70,7 @@ public class Application {
         }
     }
 
-    public static void main(String[] args) throws URISyntaxException {
+    public static void main(String[] args) throws URISyntaxException, IOException {
         Core core = new Core();
 
         Console.print("url: ");
@@ -89,8 +90,6 @@ public class Application {
             System.exit(0);
         }
 
-        URI stylesheet = Application.class.getResource("/entries.xsl").toURI();
-
         try {
             long start = System.nanoTime();
 
@@ -100,7 +99,10 @@ public class Application {
             core.retrieve(FILE_1);
             Console.println("retrieving: successfully");
 
-            core.convert(stylesheet, FILE_1, FILE_2);
+            try (InputStream stylesheet = Application.class.getResourceAsStream("/entries.xsl")) {
+                core.convert(stylesheet, FILE_1, FILE_2);
+            }
+
             Console.println("converting: successfully");
 
             BigInteger sum = core.sum(FILE_2);
