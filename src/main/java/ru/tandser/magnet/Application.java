@@ -5,13 +5,9 @@ import java.io.InputStreamReader;
 import java.math.BigInteger;
 import java.net.URI;
 import java.net.URISyntaxException;
-
-import static java.lang.String.format;
+import java.util.concurrent.TimeUnit;
 
 public class Application {
-
-    private static String pattern1 = "%-11.11s : ";
-    private static String pattern2 = "%-11.11s : %s";
 
     private static final String FILE_1 = "1.xml";
     private static final String FILE_2 = "2.xml";
@@ -33,7 +29,7 @@ public class Application {
             try {
                 input = reader.readLine();
             } catch (Exception exc) {
-                print("Fatal error. The application will be closed");
+                print("exception: Fatal error. The application will be closed");
                 System.exit(1);
             }
 
@@ -49,6 +45,13 @@ public class Application {
             while (!"exit".equalsIgnoreCase(input = read())) {
                 try {
                     result = Integer.valueOf(input);
+
+                    if (result <= 0) {
+                        println(error);
+                        print(message);
+                        continue;
+                    }
+
                     break;
                 } catch (Exception exc) {
                     println(error);
@@ -69,16 +72,16 @@ public class Application {
     public static void main(String[] args) throws URISyntaxException {
         Core core = new Core();
 
-        Console.print(format(pattern1, "url"));
+        Console.print("url: ");
         core.setUrl(Console.read());
 
-        Console.print(format(pattern1, "username"));
+        Console.print("username: ");
         core.setUsername(Console.read());
 
-        Console.print(format(pattern1, "password"));
+        Console.print("password: ");
         core.setPassword(Console.read());
 
-        Integer n = Console.read(format(pattern1, "N"), format(pattern2, "error", "Incorrect input. Try again or enter \"exit\" to interrupt"));
+        Integer n = Console.read("N: ", "error: Incorrect input. Try again or enter \"exit\" to interrupt");
 
         Console.close();
 
@@ -86,27 +89,31 @@ public class Application {
             System.exit(0);
         }
 
-        URI stylesheet = core.getClass().getResource("/entries.xsl").toURI();
+        URI stylesheet = Application.class.getResource("/entries.xsl").toURI();
 
         try {
-            long start = System.currentTimeMillis();
+            long start = System.nanoTime();
 
             core.insert(n);
-            Console.println(format(pattern2, "inserting", "successfull"));
+            Console.println("inserting: successfully");
 
             core.retrieve(FILE_1);
-            Console.println(format(pattern2, "retrieving", "successfull"));
+            Console.println("retrieving: successfully");
 
             core.convert(stylesheet, FILE_1, FILE_2);
-            Console.println(format(pattern2, "converting", "successfull"));
+            Console.println("converting: successfully");
 
             BigInteger sum = core.sum(FILE_2);
 
-            String duration = Long.toString(System.currentTimeMillis() - start) + " ms";
+            long duration = System.nanoTime() - start;
 
-            Console.println(format(pattern2, "parsing", "successfull"));
-            Console.println(format(pattern2, "sum", sum.toString()));
-            Console.print(format(pattern2, "duration", duration));
+            Console.println("parsing: successfully");
+            Console.println("sum: " + sum.toString());
+
+            long minutes = TimeUnit.NANOSECONDS.toMinutes(duration);
+            long seconds = TimeUnit.NANOSECONDS.toSeconds(duration);
+
+            Console.print(String.format("duration: %d min %d s", minutes, seconds));
 
             core.dispose();
         } catch (CoreException ignored) {}

@@ -11,6 +11,7 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
+import java.io.File;
 import java.math.BigInteger;
 import java.net.URI;
 import java.nio.file.Paths;
@@ -23,18 +24,27 @@ public class CoreTest {
 
     private static final int N = 100;
 
-    private static final String FILE_1 = "1_test.xml";
-    private static final String FILE_2 = "2_test.xml";
+    private static final String FILE_1 = "test1.xml";
+    private static final String FILE_2 = "test2.xml";
 
     private static final String URL = "jdbc:hsqldb:mem:hsqldb";
     private static final String USERNAME = "sa";
     private static final String PASSWORD = "";
 
+    private static DocumentBuilder documentBuilder;
     private static Connection connection;
+    private static BigInteger sum;
     private static Core core;
 
     @BeforeClass
     public static void beforeClass() throws Exception {
+        DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();
+        documentBuilderFactory.setNamespaceAware(true);
+        documentBuilderFactory.setCoalescing(true);
+        documentBuilderFactory.setIgnoringElementContentWhitespace(true);
+        documentBuilderFactory.setIgnoringComments(true);
+        documentBuilder = documentBuilderFactory.newDocumentBuilder();
+
         connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
 
         Statement statement = connection.createStatement();
@@ -50,6 +60,8 @@ public class CoreTest {
         preparedStatement.executeBatch();
 
         preparedStatement.close();
+
+        sum = Stream.iterate(BigInteger.ONE, n -> n.add(BigInteger.ONE)).limit(N).reduce(BigInteger::add).get();
 
         core = new Core();
         core.setUrl(URL);
@@ -72,9 +84,7 @@ public class CoreTest {
 
         statement.close();
 
-        BigInteger expected = Stream.iterate(BigInteger.ONE, n -> n.add(BigInteger.ONE)).limit(N).reduce(BigInteger::add).get();
-
-        assertTrue(actual.equals(expected));
+        assertTrue(actual.equals(sum));
     }
 
     @Test
@@ -83,27 +93,60 @@ public class CoreTest {
         core.retrieve(FILE_1);
         core.dispose();
 
-        DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();
-        documentBuilderFactory.setNamespaceAware(true);
-        documentBuilderFactory.setCoalescing(true);
-        documentBuilderFactory.setIgnoringElementContentWhitespace(true);
-        documentBuilderFactory.setIgnoringComments(true);
-        DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
-        Document actual = documentBuilder.parse(FILE_1);
+        Document actual = parse(Paths.get(FILE_1).toFile());
 
-        URI xsd = core.getClass().getResource("/schema.xsd").toURI();
-        SchemaFactory schemaFactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
-        Schema schema = schemaFactory.newSchema(Paths.get(xsd).toFile());
-        Validator validator = schema.newValidator();
-        validator.validate(new DOMSource(actual));
+        validator("/schema1.xsd").validate(new DOMSource(actual));
 
-
-        URI mock = core.getClass().getResource("/mock.xml").toURI();
-        Document extended = documentBuilder.parse(Paths.get(mock).toFile());
-
-        actual.normalizeDocument();
-        extended.normalizeDocument();
+        Document extended = parse(getResource("/mock1.xml"));
 
         assertTrue(actual.isEqualNode(extended));
+    }
+
+    @Test
+    public void testConvert() throws Exception {
+        URI xslURI = getClass().getResource("/entries.xsl").toURI();
+
+        core.insert(N);
+        core.retrieve(FILE_1);
+        core.convert(xslURI, FILE_1, FILE_2);
+        core.dispose();
+
+        Document actual = parse(Paths.get(FILE_2).toFile());
+
+        validator("/schema2.xsd").validate(new DOMSource(actual));
+
+        Document extended = parse(getResource("/mock2.xml"));
+
+        assertTrue(actual.isEqualNode(extended));
+    }
+
+    @Test
+    public void testSum() throws Exception {
+        URI xslURI = getClass().getResource("/entries.xsl").toURI();
+
+        core.insert(N);
+        core.retrieve(FILE_1);
+        core.convert(xslURI, FILE_1, FILE_2);
+        BigInteger actual = core.sum(FILE_2);
+        core.dispose();
+
+        assertTrue(actual.equals(sum));
+    }
+
+    private static Validator validator(String filename) throws Exception {
+        SchemaFactory schemaFactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+        Schema schema = schemaFactory.newSchema(getResource(filename));
+        return schema.newValidator();
+    }
+
+    private static Document parse(File source) throws Exception {
+        Document document = documentBuilder.parse(source);
+        document.normalizeDocument();
+        return document;
+    }
+
+    private static File getResource(String filename) throws Exception {
+        URI uri = CoreTest.class.getResource(filename).toURI();
+        return Paths.get(uri).toFile();
     }
 }

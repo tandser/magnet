@@ -58,6 +58,7 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>9.4.1212</version>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- org.hsqldb -->
@@ -66,6 +67,7 @@
             <groupId>org.hsqldb</groupId>
             <artifactId>hsqldb</artifactId>
             <version>2.3.4</version>
+            <scope>test</scope>
         </dependency>
 
         <!-- junit -->

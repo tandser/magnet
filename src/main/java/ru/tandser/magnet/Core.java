@@ -71,13 +71,12 @@ public class Core implements Serializable {
     }
 
     public void insert(int n) throws CoreException {
-        if (n < 0) {
+        if (n <= 0) {
             throw new IllegalArgumentException("Argument must be greater than zero");
         }
 
         try {
             connection = DriverManager.getConnection(getUrl(), getUsername(), getPassword());
-
             connection.setAutoCommit(false);
 
             Statement statement = null;
