@@ -8,13 +8,11 @@ import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
 import java.math.BigInteger;
 import java.net.URI;
-import java.net.URL;
 import java.nio.file.Paths;
 import java.sql.*;
 import java.util.stream.Stream;
@@ -28,12 +26,16 @@ public class CoreTest {
     private static final String FILE_1 = "1_test.xml";
     private static final String FILE_2 = "2_test.xml";
 
+    private static final String URL = "jdbc:hsqldb:mem:hsqldb";
+    private static final String USERNAME = "sa";
+    private static final String PASSWORD = "";
+
     private static Connection connection;
     private static Core core;
 
     @BeforeClass
     public static void beforeClass() throws Exception {
-        connection = DriverManager.getConnection("jdbc:hsqldb:mem:hsqldb", "sa", "");
+        connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
 
         Statement statement = connection.createStatement();
         statement.execute("CREATE TABLE test (field INTEGER NOT NULL);");
@@ -50,14 +52,15 @@ public class CoreTest {
         preparedStatement.close();
 
         core = new Core();
-        core.setUrl("jdbc:hsqldb:mem:hsqldb");
-        core.setUsername("sa");
-        core.setPassword("");
+        core.setUrl(URL);
+        core.setUsername(USERNAME);
+        core.setPassword(PASSWORD);
     }
 
     @Test
     public void testInsert() throws Exception {
         core.insert(N);
+        core.dispose();
 
         Statement statement = connection.createStatement();
         ResultSet resultSet = statement.executeQuery(Core.SELECT);
@@ -76,15 +79,17 @@ public class CoreTest {
 
     @Test
     public void testRetrieve() throws Exception {
-        core.insert(100);
+        core.insert(N);
         core.retrieve(FILE_1);
+        core.dispose();
 
         DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();
         documentBuilderFactory.setNamespaceAware(true);
         documentBuilderFactory.setCoalescing(true);
         documentBuilderFactory.setIgnoringElementContentWhitespace(true);
         documentBuilderFactory.setIgnoringComments(true);
-        Document actual = documentBuilderFactory.newDocumentBuilder().parse(FILE_1);
+        DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
+        Document actual = documentBuilder.parse(FILE_1);
 
         URI xsd = core.getClass().getResource("/schema.xsd").toURI();
         SchemaFactory schemaFactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
@@ -93,5 +98,12 @@ public class CoreTest {
         validator.validate(new DOMSource(actual));
 
 
+        URI mock = core.getClass().getResource("/mock.xml").toURI();
+        Document extended = documentBuilder.parse(Paths.get(mock).toFile());
+
+        actual.normalizeDocument();
+        extended.normalizeDocument();
+
+        assertTrue(actual.isEqualNode(extended));
     }
 }
