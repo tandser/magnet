@@ -72,13 +72,13 @@ public class CoreTest {
     public void testInsert() throws Exception {
         core.insert(N);
         core.dispose();
-        Statement statement = connection.createStatement();
-        ResultSet resultSet = statement.executeQuery(Core.SELECT);
         BigInteger actual = BigInteger.ZERO;
-        while (resultSet.next()) {
-            actual = actual.add(BigInteger.valueOf(resultSet.getInt(1)));
+        try (Statement statement = connection.createStatement()) {
+            ResultSet resultSet = statement.executeQuery(Core.SELECT);
+            while (resultSet.next()) {
+                actual = actual.add(BigInteger.valueOf(resultSet.getInt(1)));
+            }
         }
-        statement.close();
         assertTrue(actual.equals(sum));
     }
 

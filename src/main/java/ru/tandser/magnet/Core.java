@@ -18,6 +18,8 @@ import java.math.BigInteger;
 import java.nio.file.Paths;
 import java.sql.*;
 
+import static java.lang.String.format;
+
 public class Core implements Serializable {
 
     public static final String DELETE = "DELETE FROM test";
@@ -56,7 +58,7 @@ public class Core implements Serializable {
 
     private void printExceptionMessage(Exception exc) {
         if (exc.getMessage() != null && !exc.getMessage().isEmpty()) {
-            System.out.println(String.format("exception: %s", exc.getMessage()));
+            System.out.println(format("exception: %s", exc.getMessage()));
         }
     }
 
