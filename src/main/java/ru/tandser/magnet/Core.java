@@ -105,7 +105,7 @@ public class Core implements Serializable {
     public void retrieve(String output) throws CoreException {
         try {
             connection.setReadOnly(true);
-            try (Statement statement = connection.createStatement();) {
+            try (Statement statement = connection.createStatement()) {
                 ResultSet resultSet = statement.executeQuery(SELECT);
                 Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
                 Element entries = document.createElement("entries");
