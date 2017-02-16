@@ -26,11 +26,21 @@ public class Core implements Serializable {
     public static final String INSERT = "INSERT INTO test(field) VALUES (?)";
     public static final String SELECT = "SELECT * FROM test";
 
-    private String url;
-    private String username;
-    private String password;
+    private String  url;
+    private String  username;
+    private String  password;
+    private Integer n;
 
     private transient Connection connection;
+
+    public Core() {}
+
+    public Core(String url, String username, String password, Integer n) {
+        this.url      = url;
+        this.username = username;
+        this.password = password;
+        this.n        = n;
+    }
 
     public String getUrl() {
         return url;
@@ -56,17 +66,24 @@ public class Core implements Serializable {
         this.password = password;
     }
 
+    public Integer getN() {
+        return n;
+    }
+
+    public void setN(Integer n) {
+        this.n = n;
+    }
+
     private void printExceptionMessage(Exception exc) {
         if (exc.getMessage() != null && !exc.getMessage().isEmpty()) {
             System.out.println(format("exception: %s", exc.getMessage()));
         }
     }
 
-    public void insert(int n) throws CoreException {
-        if (n <= 0) {
-            throw new IllegalArgumentException("Argument must be greater than zero");
+    public void insert() throws CoreException {
+        if (n == null || n <= 0) {
+            throw new IllegalStateException("n = " + n);
         }
-
         try {
             connection = DriverManager.getConnection(getUrl(), getUsername(), getPassword());
             connection.setAutoCommit(false);
@@ -127,6 +144,14 @@ public class Core implements Serializable {
         } catch (Exception exc) {
             printExceptionMessage(exc);
             throw new CoreException();
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.setReadOnly(false);
+                } catch (Exception exc) {
+                    printExceptionMessage(exc);
+                }
+            }
         }
     }
 

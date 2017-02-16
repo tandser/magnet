@@ -76,6 +76,7 @@ public class Application {
         core.setPassword(Console.read());
 
         Integer n = Console.read("N: ", "error: Incorrect input. Try again or enter \"exit\" to interrupt");
+        core.setN(n);
 
         Console.close();
 
@@ -86,7 +87,7 @@ public class Application {
         try {
             long start = System.nanoTime();
 
-            core.insert(n);
+            core.insert();
             Console.println("inserting: successfully");
 
             core.retrieve(FILE_1);

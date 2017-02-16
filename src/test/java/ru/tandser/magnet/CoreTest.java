@@ -23,19 +23,18 @@ import static org.junit.Assert.assertTrue;
 
 public class CoreTest {
 
-    private static final int N = 100;
-
     private static final String FILE_1 = "test1.xml";
     private static final String FILE_2 = "test2.xml";
 
-    private static final String URL = "jdbc:hsqldb:mem:hsqldb";
-    private static final String USERNAME = "sa";
-    private static final String PASSWORD = "";
+    private static final String  URL      = "jdbc:hsqldb:mem:hsqldb";
+    private static final String  USERNAME = "sa";
+    private static final String  PASSWORD = "";
+    private static final Integer N        = 100;
 
     private static DocumentBuilder documentBuilder;
-    private static Connection connection;
-    private static BigInteger sum;
-    private static Core core;
+    private static Connection      connection;
+    private static Core            core;
+    private static BigInteger      sum;
 
     @BeforeClass
     public static void beforeClass() throws Exception {
@@ -45,13 +44,10 @@ public class CoreTest {
         documentBuilderFactory.setIgnoringElementContentWhitespace(true);
         documentBuilderFactory.setIgnoringComments(true);
         documentBuilder = documentBuilderFactory.newDocumentBuilder();
-
         connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
-
         try (Statement statement = connection.createStatement()) {
             statement.execute("CREATE TABLE test (field INTEGER NOT NULL);");
         }
-
         try (PreparedStatement preparedStatement = connection.prepareStatement(Core.INSERT)) {
             for (int i = -10; i <= 0; i++) {
                 preparedStatement.setInt(1, i);
@@ -59,18 +55,13 @@ public class CoreTest {
             }
             preparedStatement.executeBatch();
         }
-
-        sum = Stream.iterate(BigInteger.ONE, n -> n.add(BigInteger.ONE)).limit(N).reduce(BigInteger::add).get();
-
-        core = new Core();
-        core.setUrl(URL);
-        core.setUsername(USERNAME);
-        core.setPassword(PASSWORD);
+        core = new Core(URL, USERNAME, PASSWORD, N);
+        sum = Stream.iterate(BigInteger.ONE, n -> n.add(BigInteger.ONE)).limit(N).reduce(BigInteger::add).orElse(BigInteger.ZERO);
     }
 
     @Test
     public void testInsert() throws Exception {
-        core.insert(N);
+        core.insert();
         core.dispose();
         BigInteger actual = BigInteger.ZERO;
         try (Statement statement = connection.createStatement()) {
@@ -84,7 +75,7 @@ public class CoreTest {
 
     @Test
     public void testRetrieve() throws Exception {
-        core.insert(N);
+        core.insert();
         core.retrieve(FILE_1);
         core.dispose();
         Document actual = parse(Paths.get(FILE_1).toFile());
@@ -95,7 +86,7 @@ public class CoreTest {
 
     @Test
     public void testConvert() throws Exception {
-        core.insert(N);
+        core.insert();
         core.retrieve(FILE_1);
         try (InputStream stylesheet = getClass().getResourceAsStream("/entries.xsl")) {
             core.convert(stylesheet, FILE_1, FILE_2);
@@ -109,7 +100,7 @@ public class CoreTest {
 
     @Test
     public void testSum() throws Exception {
-        core.insert(N);
+        core.insert();
         core.retrieve(FILE_1);
         try (InputStream stylesheet = getClass().getResourceAsStream("/entries.xsl")) {
             core.convert(stylesheet, FILE_1, FILE_2);
