@@ -1,11 +1,9 @@
 package ru.tandser.magnet;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigInteger;
-import java.net.URISyntaxException;
 import java.util.concurrent.TimeUnit;
 
 public class Application {
@@ -13,105 +11,36 @@ public class Application {
     private static final String FILE_1 = "1.xml";
     private static final String FILE_2 = "2.xml";
 
-    private static class Console {
-        private static BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+    private static BufferedReader console = new BufferedReader(new InputStreamReader(System.in));
 
-        public static void print(String message) {
-            System.out.print(message);
-        }
-
-        public static void println(String message) {
-            System.out.println(message);
-        }
-
-        public static String read() {
-            String input = null;
-            try {
-                input = reader.readLine();
-            } catch (Exception exc) {
-                print("exception: Fatal error. The application will be closed");
-                System.exit(1);
-            }
-            return input;
-        }
-
-        public static Integer read(String message, String error) {
-            String input;
-            Integer result = null;
-            print(message);
-            while (!"exit".equalsIgnoreCase(input = read())) {
-                try {
-                    result = Integer.valueOf(input);
-                    if (result <= 0) {
-                        println(error);
-                        print(message);
-                        continue;
-                    }
-                    break;
-                } catch (Exception exc) {
-                    println(error);
-                    print(message);
-                }
-            }
-            return result;
-        }
-
-        public static void close() {
-            try {
-                reader.close();
-            } catch (Exception ignored) {}
-        }
-    }
-
-    public static void main(String[] args) throws URISyntaxException, IOException {
+    public static void main(String[] args) throws Exception {
         Core core = new Core();
-
-        Console.print("url: ");
-        core.setUrl(Console.read());
-
-        Console.print("username: ");
-        core.setUsername(Console.read());
-
-        Console.print("password: ");
-        core.setPassword(Console.read());
-
-        Integer n = Console.read("N: ", "error: Incorrect input. Try again or enter \"exit\" to interrupt");
-        core.setN(n);
-
-        Console.close();
-
-        if (n == null) {
-            System.exit(0);
-        }
-
+        System.out.print("url        : ");
+        core.setUrl(console.readLine());
+        System.out.print("username   : ");
+        core.setUsername(console.readLine());
+        System.out.print("password   : ");
+        core.setPassword(console.readLine());
+        System.out.print("n          : ");
+        core.setN(Integer.parseInt(console.readLine()));
+        console.close();
         try {
             long start = System.nanoTime();
-
+            InputStream stylesheet = Application.class.getResourceAsStream("/entries.xsl");
             core.insert();
-            Console.println("inserting: successfully");
-
+            System.out.println("inserting  : successfully");
             core.retrieve(FILE_1);
-            Console.println("retrieving: successfully");
-
-            try (InputStream stylesheet = Application.class.getResourceAsStream("/entries.xsl")) {
-                core.convert(stylesheet, FILE_1, FILE_2);
-            }
-
-            Console.println("converting: successfully");
-
+            System.out.println("retrieving : successfully");
+            core.convert(stylesheet, FILE_1, FILE_2);
+            System.out.println("converting : successfully");
             BigInteger sum = core.sum(FILE_2);
-
+            core.dispose();
             long duration = System.nanoTime() - start;
-
-            Console.println("parsing: successfully");
-            Console.println("sum: " + sum.toString());
-
+            System.out.println("parsing    : successfully");
+            System.out.println("sum        : " + sum.toString());
             long minutes = TimeUnit.NANOSECONDS.toMinutes(duration);
             long seconds = TimeUnit.NANOSECONDS.toSeconds(duration);
-
-            Console.print(String.format("duration: %d min %d s", minutes, seconds));
-
-            core.dispose();
+            System.out.println(String.format("duration   : %d min %d s", minutes, seconds));
         } catch (CoreException ignored) {}
     }
 }

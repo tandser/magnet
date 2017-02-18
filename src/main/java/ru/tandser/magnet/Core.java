@@ -76,7 +76,7 @@ public class Core implements Serializable {
 
     private void printExceptionMessage(Exception exc) {
         if (exc.getMessage() != null && !exc.getMessage().isEmpty()) {
-            System.out.println(format("exception: %s", exc.getMessage()));
+            System.err.println(exc.getMessage());
         }
     }
 
