@@ -33,7 +33,7 @@ public class Application {
             System.out.println("retrieving : successfully");
             core.convert(stylesheet, FILE_1, FILE_2);
             System.out.println("converting : successfully");
-            BigInteger sum = core.sum(FILE_2);
+            BigInteger sum = core.parse(FILE_2);
             core.dispose();
             long duration = System.nanoTime() - start;
             System.out.println("parsing    : successfully");

@@ -105,7 +105,7 @@ public class CoreTest {
         try (InputStream stylesheet = getClass().getResourceAsStream("/entries.xsl")) {
             core.convert(stylesheet, FILE_1, FILE_2);
         }
-        BigInteger actual = core.sum(FILE_2);
+        BigInteger actual = core.parse(FILE_2);
         core.dispose();
         assertTrue(actual.equals(sum));
     }

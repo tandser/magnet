@@ -1,24 +1,21 @@
 package ru.tandser.magnet;
 
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NodeList;
+import org.xml.sax.Attributes;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
 
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.OutputKeys;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamWriter;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
-import java.io.File;
-import java.io.InputStream;
-import java.io.Serializable;
+import java.io.*;
 import java.math.BigInteger;
 import java.nio.file.Paths;
 import java.sql.*;
-
-import static java.lang.String.format;
 
 public class Core implements Serializable {
 
@@ -119,24 +116,27 @@ public class Core implements Serializable {
         }
     }
 
-    public void retrieve(String output) throws CoreException {
+    public void retrieve(String filename) throws CoreException {
         try {
             connection.setReadOnly(true);
-            try (Statement statement = connection.createStatement()) {
+            try (Statement statement = connection.createStatement();
+                    OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(filename))) {
                 ResultSet resultSet = statement.executeQuery(SELECT);
-                Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
-                Element entries = document.createElement("entries");
+                XMLStreamWriter xmlStreamWriter = XMLOutputFactory.newInstance()
+                        .createXMLStreamWriter(outputStream, "UTF-8");
+                xmlStreamWriter.writeStartDocument("UTF-8", "1.0");
+                xmlStreamWriter.writeStartElement("entries");
                 while (resultSet.next()) {
-                    Element entry = document.createElement("entry");
-                    Element field = document.createElement("field");
-                    field.appendChild(document.createTextNode(Integer.toString(resultSet.getInt(1))));
-                    entry.appendChild(field);
-                    entries.appendChild(entry);
+                    xmlStreamWriter.writeStartElement("entry");
+                    xmlStreamWriter.writeStartElement("field");
+                    xmlStreamWriter.writeCharacters(resultSet.getString(1));
+                    xmlStreamWriter.writeEndElement();
+                    xmlStreamWriter.writeEndElement();
                 }
-                document.appendChild(entries);
-                Transformer transformer = TransformerFactory.newInstance().newTransformer();
-                transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
-                transformer.transform(new DOMSource(document), new StreamResult(Paths.get(output).toFile()));
+                xmlStreamWriter.writeEndElement();
+                xmlStreamWriter.writeEndDocument();
+                xmlStreamWriter.flush();
+                xmlStreamWriter.close();
             } catch (Exception exc) {
                 printExceptionMessage(exc);
                 throw new CoreException();
@@ -165,17 +165,24 @@ public class Core implements Serializable {
         }
     }
 
-    public BigInteger sum(String input) throws CoreException {
+    public BigInteger parse(String filename) throws CoreException {
         try {
-            File source = Paths.get(input).toFile();
-            BigInteger sum = BigInteger.ZERO;
-            Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(source);
-            NodeList nodeList = document.getElementsByTagName("entry");
-            for (int i = 0; i < nodeList.getLength(); i++) {
-                Element entry = (Element) nodeList.item(i);
-                sum = sum.add(new BigInteger(entry.getAttribute("field")));
-            }
-            return sum;
+            return new DefaultHandler() {
+                private BigInteger accumulator = BigInteger.ZERO;
+
+                public BigInteger sum() throws Exception {
+                    SAXParser saxParser = SAXParserFactory.newInstance().newSAXParser();
+                    saxParser.parse(new BufferedInputStream(new FileInputStream(filename)), this);
+                    return accumulator;
+                }
+
+                @Override
+                public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
+                    if (qName.equals("entry")) {
+                        accumulator = accumulator.add(new BigInteger(attributes.getValue("field")));
+                    }
+                }
+            }.sum();
         } catch (Exception exc) {
             printExceptionMessage(exc);
             throw new CoreException();
