@@ -178,7 +178,7 @@ public class Core implements Serializable {
 
                 @Override
                 public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
-                    if (qName.equals("entry")) {
+                    if ("entry".equals(qName)) {
                         accumulator = accumulator.add(new BigInteger(attributes.getValue("field")));
                     }
                 }
